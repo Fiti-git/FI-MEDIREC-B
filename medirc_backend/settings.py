@@ -90,7 +90,8 @@ DATABASES = {
         'NAME': 'MEDIREC',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
-        'HOST': 'localhost',  
+        # 'HOST': 'localhost',  
+        'HOST': 'db',  # <-- Use the service name of your DB container here
         'PORT': '5432',
     }
 }
