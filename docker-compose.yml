@@ -3,11 +3,21 @@ version: '3.8'
 services:
   web:
     build: .
-    command: gunicorn medirc_backend.wsgi:application --bind 0.0.0.0:5000  # Changed port to 5000
+    command: gunicorn medirc_backend.wsgi:application --bind 0.0.0.0:5000
     volumes:
       - .:/app
     ports:
-      - "5000:5000"  # Exposing port 5000
+      - "5000:5000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+
+  worker:
+    build: .
+    command: python manage.py process_tasks
+    volumes:
+      - .:/app
     depends_on:
       - db
     env_file:

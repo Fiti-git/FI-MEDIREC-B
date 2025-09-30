@@ -9,4 +9,4 @@ psycopg2-binary>=2.9
 django-cors-headers
 gunicorn>=21.2.0
 drf_yasg
-
+google-api-python-client
