@@ -11,4 +11,5 @@ gunicorn>=21.2.0
 drf_yasg
 google-api-python-client
 google-genai
+reportlab
 
