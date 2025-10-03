@@ -89,68 +89,92 @@ def analyze_with_gemini(extracted_text_id):
             medical_text = f.read()
 
         prompt = f"""
-You are a highly skilled medical AI assistant specialized in analyzing lab reports.
-Your task is to meticulously extract and interpret all relevant information from the provided medical lab report.
-You must structure your output as a single Darft word document Type.
+        
+You are a highly skilled medical AI assistant specialized in analyzing laboratory reports. 
+Your role is to act like a doctor, providing clear explanations and recommendations that patients can easily understand.
+
+Your output must be structured as a single JSON object.
 
 **General JSON Structure Requirements:**
 
-1.  **Top-Level Keys**: The JSON should have the following main keys:
-    *   `patientInformation`: Details about the patient.
-    *   `overallReportSummary`: A concise, high-level summary of the entire report.
-    *   `recommendationsForDoctorsReview`: Clinical recommendations based on significant findings.
-    *   `detailedReports`: A breakdown of all lab tests, grouped by panel.
-    *   `reportMetadata`: Information about the report itself (timestamps, technicians).
-    *   `pendingReports`: Any reports mentioned as pending.
+1. **Top-Level Keys**:
+    * `patientInformation`: Basic details about the patient.
+    * `overallReportSummary`: A concise, easy-to-understand overview of the lab findings.
+    * `recommendationsForPatientsReview`: Practical advice for patients including lifestyle, monitoring, and medical guidance.
+    * `detailedReports`: A breakdown of test panels and results.
+    * `reportMetadata`: Information about the report itself (dates, technicians).
 
-2.  **`patientInformation`**:
-    *   Extract fields like `mrNo`, `name`, `labNo`, `dobAgeGender`, `doctor`, `referredClinic`, `mobileNo`, `encoDate`, `idPassport`, `nationality`.
-    *   If "Vitals" are present (height, weight, BMI, hand grip), include them. Otherwise, mark as "Not available".
+---
 
-3.  **`overallReportSummary`**:
-    *   Generate a comprehensive summary of the key findings (both normal and abnormal) for the patient in the report. This should be a concise paragraph written for a medical professional.
+### 2. `patientInformation`
+* Extract fields like `mrNo`, `name`, `labNo`, `dobAgeGender`, `doctor`, `referredClinic`, `mobileNo`, `encoDate`, `idPassport`, `nationality`.
+* If vitals (height, weight, BMI, blood pressure, hand grip, etc.) are available, include them; otherwise mark `"Not available"`.
 
-4.  **`recommendationsForDoctorsReview`**:
-    *   This should be an object with categories like `cardiovascularHealthAndLipidManagement`, `inflammation`, `glucoseRegulationAndMetabolicStatus`, `electrolyteAndProteinBalance`, `hematologicalConsiderations`, `prostateHealth`, `generalWellnessAndPendingReports`.
-    *   For each category, include `findings` (specific results that led to the recommendation) and `recommendation` (clinical advice/next steps).
-    *   Add a `concludingNote` at the end stating: "These recommendations are generated based on the provided laboratory data. Comprehensive patient care requires correlation with the patient's full medical history, physical examination, and clinical presentation."
+---
 
-5.  **`detailedReports`**:
-    *   This should contain an array `testList` listing all major test panel names.
-    *   Then, include objects for different categories of tests (e.g., `biochemistry`, `endocrinologyImmuno`, `clinicalPathology`, `haematology`, `urinalysisByDipstickReagent`, etc.).
-    *   Within each category, define panels (e.g., `lipidPanel`, `cReactiveProtein`, `hepaticFunctionPanel`).
-    *   For each **panel**:
-        *   `panelName`: The full name of the test panel.
-        *   `overallSummary`: A brief clinical summary of the panel.
-        *   `remarks` or `clinicalInterpretation` if provided in the report.
-        *   `tests`: An array of individual test objects. For each test:
-            *   `testName`
-            *   `testResult` (include any 'H' or 'L' flags, e.g., "203 H")
-            *   `units`
-            *   `referenceRange`
-            *   `status`: "High", "Low", or "Normal" based on the result and reference range.
-            *   `method` (if available)
-            *   `summary`: A concise, patient-friendly medical insight based on the result and status.
-            *   If PSA, calculate `Free PSAPercentage` and include it with its interpretation.
+### 3. `overallReportSummary`
+* Write in plain, patient-friendly language.
+* Highlight both healthy results and areas of concern.
+* Example: *“Your cholesterol levels are slightly high, which may increase your risk for heart problems in the future. Your blood sugar is within the normal range, which is good.”*
 
-6.  **`reportMetadata`**:
-    *   Include `collectedOn`, `receivedOn`, `authenticatedOn`, `printedOn`, `reprintedOn` as formatted strings ("DD-MM-YYYY HH:MM:SS").
-    *   Include a `technicians` array, with objects for each technician/pathologist, containing `name`, `role`, and `dhaP` (license/ID).
+---
 
-7.  **`pendingReports`**:
-    *   Include keys for `devices` and `genetics` with appropriate text indicating they are pending.
+### 4. `recommendationsForPatientsReview`
+* Organize recommendations into categories:
+    - `heartAndCholesterolHealth`
+    - `bloodSugarAndMetabolism`
+    - `liverAndKidneyFunction`
+    - `vitaminsAndGeneralWellness`
+    - `inflammationAndImmunity`
+    - `bloodAndHematology`
+    - `prostateHealth` (if applicable)
 
-**Handling Missing Information:**
-*   If a specific data point is explicitly not found in the report, use `null` for numeric values or `"Not available in provided data"` for string fields.
-*   For lists or objects that should be empty because no data was found, use `[]` or `{{}}` respectively.
+* For each category include:
+    - `findings`: Key abnormal or noteworthy results.
+    - `lifestyle`: Simple advice (diet, exercise, sleep, stress, hydration, etc.).
+    - `monitoring`: What the patient should track (blood pressure, sugar checks, weight, follow-up labs).
+    - `medical`: When to consult a doctor, further tests, or treatments to discuss.
 
-**Example of how to determine 'status' for a test:**
-*   If `testResult` is "203 H" and `referenceRange` is "Desirable:100-199", then `status` should be "High".
-*   If `testResult` is "68 L" and `referenceRange` is "Normal : 70 - 99", then `status` should be "Low".
-*   If `testResult` is "57" and `referenceRange` is "Low : <40, High: >60", then `status` should be "Normal".
+* Add a `concludingNote`:  
+  "These recommendations are based only on your lab results. For complete care, always discuss these findings with your doctor, who knows your full medical history."
 
-**Output Format:**
-Return the complete analysis as a single, well-formed JSON object.
+---
+
+### 5. `detailedReports`
+* Contain:
+    - `testList`: Array of all major test panels.
+    - For each panel:
+        * `panelName`
+        * `overallSummary`: Written in patient-friendly language.
+        * `tests`: Array of test objects:
+            - `testName`
+            - `testResult` (with H/L flags if present)
+            - `units`
+            - `referenceRange`
+            - `status`: "High", "Low", or "Normal"
+            - `summary`: Short plain-language explanation of what this means for the patient.
+        * If PSA is present, calculate `freePSAPercentage` and explain its meaning in simple terms.
+
+---
+
+### 6. `reportMetadata`
+* Include `collectedOn`, `receivedOn`, `authenticatedOn`, `printedOn`, `reprintedOn` formatted as `"DD-MM-YYYY HH:MM:SS"`.
+* Include `technicians`: Array with `name`, `role`, and `dhaP`.
+
+---
+
+### 7. Handling Missing Information
+* If a value is missing:  
+  - For numbers → `null`  
+  - For strings → `"Not available in provided data"`  
+* For missing groups → use `[]` .
+
+---
+
+### 8. Output Format
+* The final output must be a **single well-formed JSON object**.  
+* All summaries, explanations, and recommendations must be **clear, supportive, and easy for patients to understand**.
+
 
 --- BEGIN REPORT ---
 {medical_text}
