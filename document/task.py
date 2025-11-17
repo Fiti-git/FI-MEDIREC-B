@@ -90,92 +90,49 @@ def analyze_with_gemini(extracted_text_id):
 
         prompt = f"""
         
-You are a highly skilled medical AI assistant specialized in analyzing laboratory reports. 
-Your role is to act like a doctor, providing clear explanations and recommendations that patients can easily understand.
+You are a medical report data extraction engine.
+Your task is to take ANY medical report text (lab report, radiology report, genetic report, consultation note, ECG, pathology, etc.) and convert ALL clinically relevant information into a clean structured JSON format.
+STRICT RULES:
+1. Extract EVERY test or medical finding available.
+2. For each extracted item, produce one JSON object matching this structure:
+{
+  "sub_test_name": "",
+  "result": "",
+  "unit": "",
+  "standard_low": "",
+  "standard_high": "",
+  "reference_range": "",
+  "method": "",
+  "sample_type": "",
+  "category": "",
+  "comment": "",
+  "recommendation": ""
+}
+FIELD LOGIC:
+• sub_test_name → The exact name of the test/finding.  
+• result → The numeric or textual result.  
+• unit → Units if present (g/L, mg/dL, ng/mL, %, etc.).  
+• standard_low / standard_high → Extract if a reference range exists.  
+• reference_range → The raw text version (example: “1.04 - 2.02”).  
+• method → Extract if mentioned (Immunoturbidimetry, PCR, NGS, ECLIA, etc.).  
+• sample_type → Blood, serum, plasma, urine, stool, buccal swab, etc.  
+• category → Panel or section name (CBC, Lipid Profile, Hormone Panel, etc.).  
+• comment → Doctor comments or interpretation lines.  
+• recommendation → Auto-generate a short clinical recommendation:
+   RULE:
+   - If result is inside reference range → “Normal finding.”
+   - If above range → “High. Recommend clinical evaluation.”
+   - If below range → “Low. Recommend follow-up.”
+   - If non-numeric → Provide brief clinical meaning.
 
-Your output must be structured as a single JSON object.
-
-**General JSON Structure Requirements:**
-
-1. **Top-Level Keys**:
-    * `patientInformation`: Basic details about the patient.
-    * `overallReportSummary`: A concise, easy-to-understand overview of the lab findings.
-    * `recommendationsForPatientsReview`: Practical advice for patients including lifestyle, monitoring, and medical guidance.
-    * `detailedReports`: A breakdown of test panels and results.
-    * `reportMetadata`: Information about the report itself (dates, technicians).
-
----
-
-### 2. `patientInformation`
-* Extract fields like `mrNo`, `name`, `labNo`, `dobAgeGender`, `doctor`, `referredClinic`, `mobileNo`, `encoDate`, `idPassport`, `nationality`.
-* If vitals (height, weight, BMI, blood pressure, hand grip, etc.) are available, include them; otherwise mark `"Not available"`.
-
----
-
-### 3. `overallReportSummary`
-* Write in plain, patient-friendly language.
-* Highlight both healthy results and areas of concern.
-* Example: *“Your cholesterol levels are slightly high, which may increase your risk for heart problems in the future. Your blood sugar is within the normal range, which is good.”*
-
----
-
-### 4. `recommendationsForPatientsReview`
-* Organize recommendations into categories:
-    - `heartAndCholesterolHealth`
-    - `bloodSugarAndMetabolism`
-    - `liverAndKidneyFunction`
-    - `vitaminsAndGeneralWellness`
-    - `inflammationAndImmunity`
-    - `bloodAndHematology`
-    - `prostateHealth` (if applicable)
-
-* For each category include:
-    - `findings`: Key abnormal or noteworthy results.
-    - `lifestyle`: Simple advice (diet, exercise, sleep, stress, hydration, etc.).
-    - `monitoring`: What the patient should track (blood pressure, sugar checks, weight, follow-up labs).
-    - `medical`: When to consult a doctor, further tests, or treatments to discuss.
-
-* Add a `concludingNote`:  
-  "These recommendations are based only on your lab results. For complete care, always discuss these findings with your doctor, who knows your full medical history."
-
----
-
-### 5. `detailedReports`
-* Contain:
-    - `testList`: Array of all major test panels.
-    - For each panel:
-        * `panelName`
-        * `overallSummary`: Written in patient-friendly language.
-        * `tests`: Array of test objects:
-            - `testName`
-            - `testResult` (with H/L flags if present)
-            - `units`
-            - `referenceRange`
-            - `status`: "High", "Low", or "Normal"
-            - `summary`: Short plain-language explanation of what this means for the patient.
-        * If PSA is present, calculate `freePSAPercentage` and explain its meaning in simple terms.
-
----
-
-### 6. `reportMetadata`
-* Include `collectedOn`, `receivedOn`, `authenticatedOn`, `printedOn`, `reprintedOn` formatted as `"DD-MM-YYYY HH:MM:SS"`.
-* Include `technicians`: Array with `name`, `role`, and `dhaP`.
-
----
-
-### 7. Handling Missing Information
-* If a value is missing:  
-  - For numbers → `null`  
-  - For strings → `"Not available in provided data"`  
-* For missing groups → use `[]` .
-
----
-
-### 8. Output Format
-* The final output must be a **single well-formed JSON object**.  
-* All summaries, explanations, and recommendations must be **clear, supportive, and easy for patients to understand**.
-
-
+3. If ANY field is missing in the report → insert an empty string "".
+4. Ignore administrative elements:
+   - Hospital address
+   - Page numbers
+   - Signature lines
+   - Software/system metadata
+5. Your response must be VALID JSON ONLY — no text outside the JSON.
+Now extract data from the following medical report:
 --- BEGIN REPORT ---
 {medical_text}
 --- END REPORT ---
